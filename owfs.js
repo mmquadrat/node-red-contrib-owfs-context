@@ -1,4 +1,5 @@
 /**
+ * Copyright 2019 Michael Mueller
  * Copyright 2014-2016 Nicholas Humfrey
  * Copyright 2013 IBM Corp.
  *
@@ -63,7 +64,7 @@ module.exports = function(RED) {
         return result;
     }
 
-    function OwfsNode(n) {
+    function OwfsFuncNode(n) {
         RED.nodes.createNode(this, n);
         this.host = n.host;
         this.port = n.port;
@@ -73,7 +74,7 @@ module.exports = function(RED) {
 
         var node = this;
         node.on("input", function(msg) {
-            var host = msg.host || node.host;
+			var host = msg.host || node.host;
             var port = msg.port || node.port || 4304;
             var mode = msg.mode || node.mode || 'read';
             var uncached = msg.hasOwnProperty('uncached') ? msg.uncached : node.uncached;
@@ -93,11 +94,16 @@ module.exports = function(RED) {
                 return;
             }
 
-            var client = new owfs.Client(host, port);
-            var clientRead = Promise.promisify(client.read, {context: client});
-            var clientWrite = Promise.promisify(client.write, {context: client});
-            var clientPresence = Promise.promisify(client.presence, {context: client});
 
+
+
+
+
+	        var client = new owfs.Client(host, port);
+	        var clientRead = Promise.promisify(client.read, {context: client});
+			var clientWrite = Promise.promisify(client.write, {context: client});
+	        var clientPresence = Promise.promisify(client.presence, {context: client});
+	  
             if (mode == 'write') {
                 var performRequest = function(path) {
                     return clientWrite(path, msg.payload).then(function(result) {
@@ -110,7 +116,7 @@ module.exports = function(RED) {
                 }
                 node.status({fill:"blue", shape:"dot", text:"Writing"});
             } else if (mode == 'presence') {
-                var performRequest = function(path) {
+            	var performRequest = function(path) {
                     if (uncached) {
                         return clientPresence('uncached/' + path);
                     } else {
@@ -130,10 +136,25 @@ module.exports = function(RED) {
             }
 
             var sendResult = function(result, index) {
-                msg = { payload:  parseResult(result)};
+                msg.payload = parseResult(result);
                 msg.topic = paths[index];
                 msg.timestamp = Date.now();
                 node.send(msg);
+				var globalContext = node.context().global;
+				
+				var devices = globalContext.get('Devices');
+				var devAddress = msg.topic;
+				var devName = devAddress;
+				
+				for (var myDev in devices) {
+					if (devices[myDev] == devAddress) {
+						devName = myDev;        
+						break;
+					}
+				}
+				var key = "LiveValues." + devName;
+				node.log(devName + ": " + msg.payload);
+				globalContext.set(key,msg.payload);
             };
 
             Promise
@@ -152,7 +173,7 @@ module.exports = function(RED) {
                 });
         });
     }
-    RED.nodes.registerType("owfs", OwfsNode);
+    RED.nodes.registerType("owfs_func", OwfsFuncNode);
 
     RED.httpAdmin.get("/owfs/dirall", function(req, res) {
         if (!req.query.host) {
