@@ -28,6 +28,18 @@ To trigger reading sensors periodically, use an Inject node to send messages eve
 
 To check presence of sensors, select Mode **Presence** and use an Inject node to request the status. A boolean value in **msg.payload** will indicate the sensor presence status.
 
+New functionality of this fork is writing values from nodes reading into global context in section "LiveValues".
+e.g. 
+   "LiveValues": {
+        "5": {
+            "581D30000000/sensed": 1,
+            "562830000000/PIO": "ok"
+        },
+        "Temp1": 28.75,
+        "Temp2": 20.6875,
+        "Temp3": 25.75,
+        "Door": 0
+    }
 
 Example
 -------
@@ -44,7 +56,7 @@ The flow can be downloaded from the Node-Red Flow Library here:
 http://flows.nodered.org/flow/b11cfe3a7728a297e44d
 
 
-Hardare Tested
+Hardware Tested
 --------------
 
 * [DS18B20 Temperature Sensor](http://www.maximintegrated.com/en/products/DS18B20)
