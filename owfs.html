@@ -1,14 +1,10 @@
 <!--
-  Copyright 2019 Michael Mueller
   Copyright 2014-2016 Nicholas Humfrey
   Copyright 2013 IBM Corp.
-
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
   You may obtain a copy of the License at
-
   http://www.apache.org/licenses/LICENSE-2.0
-
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,7 +12,7 @@
   limitations under the License.
 -->
 
-<script type="text/y-red" data-template-name="owfs_func">
+<script type="text/x-red" data-template-name="owfs">
     <div class="form-row">
         <label for="node-input-host"><i class="icon-globe"></i> Host</label>
         <input class="input-append-left" type="text" id="node-input-host" placeholder="localhost" style="width: 40%;" />
@@ -32,6 +28,7 @@
         <select id="node-input-mode" style="width:70%">
             <option value="read">Read</option>
             <option value="write">Write</option>
+            <option value="presence">Presence</option>
         </select>
     </div>
     <div class="form-row">
@@ -39,29 +36,29 @@
         <input type="checkbox" id="node-input-uncached" value="true" style="display: inline-block; width: auto; vertical-align: top;">
         <label for="node-input-uncached" style="width: 70%;">Request Uncached Values</label>
     </div>
-    <div class="form-row" style="margin-top: 5px">
-    	<div class="form-row">
-			<label for="node-input-filter"><i class="icon-tag"></i> Filter</label>
-			<input type="text" id="node-input-filter" placeholder="28.345000" />
-		</div>
-        <div class="btn">
-          <a class="btn" id='node-input-select-none' href="#"> Remove selection <span class="caret"></span></a>
-		</div>
-		<div class="btn">
-          <a class="btn" id='node-input-select-filter' href="#"> Refresh <span class="caret"></span></a>
-		</div>
-		<span id="owfs-status"><small></small></span>
+    <div class="form-row" style="margin-top: 25px">
+        <div class="btn-group">
+            <a class="btn btn-mini dropdown-toggle" data-toggle="dropdown" href="#"><i class="icon-align-justify"></i> Select <span class="caret"></span></a>
+            <ul class="dropdown-menu">
+                <li><a id='node-input-select-none' href="#">None</a></li>
+                <li><a id='node-input-select-all' href="#">All</a></li>
+                <li><a id='node-input-select-temperature' href="#">All Temperature</a></li>
+                <li><a id='node-input-select-humidity' href="#">All Humidity</a></li>
+            </ul>
+        </div>
+        <a class="btn btn-mini" id="node-input-refresh-paths" href="#"><i class="icon-refresh"></i> Refresh</a>
+        <span id="owfs-status"><small></small></span>
     </div>
     <div class="form-row">
         <div id="node-input-paths-container-div" style="border-radius: 5px; height: 310px; padding: 5px; border: 1px solid #ccc; overflow-y:scroll;">
-			<ol id="node-input-paths-container" style="list-style-type:none; margin: 0;">
-			</ol>
+        <ol id="node-input-paths-container" style="list-style-type:none; margin: 0;">
+        </ol>
         </div>
     </div>
 </script>
 
-<script type="text/y-red" data-help-name="owfs_func">
-    <p>A node for read/write to <a href="http://www.maximintegrated.com/en/products/comms/one-wire.html" target="_new">1-wire</a> devices using an <a href="http://owfs.org/" target="_new">owfs_func</a> <a href="http://owfs.org/index.php?page=owserver" target="_new">owserver</a> instance.</p>
+<script type="text/x-red" data-help-name="owfs">
+    <p>A node for talking to <a href="http://www.maximintegrated.com/en/products/comms/one-wire.html" target="_new">1-wire</a> devices using an <a href="http://owfs.org/" target="_new">owfs</a> <a href="http://owfs.org/index.php?page=owserver" target="_new">owserver</a> instance.</p>
     <p>One or more owfs paths can be selected in the node edit dialog. Upon receiving a message on the input the node, it will request each of the values in turn from owfs and places the reading in <b>msg.payload</b>.</p>
     <p>Alternatively a device path can be specified in the <b>msg.topic</b> field, for example <code>28.0080BE21AA00/temperature</code>. This will override any paths selected in the edit dialog.</p>
     <p>If the <a href="http://owfs.org/index.php?page=what-is-uncached">uncached</a> flag is set, then it requests the owfs gets fresh value from the 1-wire device, rather than a recent value.</p>
@@ -71,7 +68,7 @@
 </script>
 
 <script type="text/javascript">
-    RED.nodes.registerType('owfs_func',{
+    RED.nodes.registerType('owfs',{
         category: 'hardware',
         defaults: {
             name: {value:""},
@@ -79,49 +76,28 @@
             mode: {value:"read",validate:RED.validators.regex(/^read|write|presence$/)},
             host: {value:"localhost"},
             port: {value:4304,validate:RED.validators.regex(/^[0-9]*$/)},
-        	paths: {value:[]}
+            paths: {value:[]}
         },
         color:"#C0DEED",
         inputs:1,
         outputs:1,
         icon: "1w.png",
         label: function() {
-            return this.name||"owfs_func(f)"+this.mode;
+            return this.name||"owfs "+this.mode;
         },
         labelStyle: function() {
             return this.name?"node_label_italic":"";
         },
-		button: {
-			onclick: function() {
-				// Called when the button is clicked
-			}
-		},
         oneditprepare: function() {
-			var node = this;	
             function generateRow(i,path) {
-				var filter = $('#node-input-filter').val();
-				if (filter.length == 0) { 
-					var endBlock = "###";
-					var checkPath = path + endBlock;
-					var matchSwitch = checkPath.indexOf("PIO" + endBlock);
-					var matchTemp = checkPath.indexOf("temperature" + endBlock);
-					var matchSensor = checkPath.indexOf("sensed" + endBlock);
-					var matchFilter = matchSwitch > 0 || matchTemp > 0 || matchSensor > 0;
-				} else {
-					var checkFilter = path.indexOf(filter);
-					var matchFilter = checkFilter >= 0 ? true : false;
-				}
-				
-				if (matchFilter) {
-					var container = $('<li/>',{style:"margin:0; padding:8px 0px; border-bottom: 1px solid #ccc;"});
-					var row = $('<div/>',{class:"node-input-path-row"}).appendTo(container);
-					var row2 = $('<div/>',{style:"padding-top: 5px;"}).appendTo(container);
+                var container = $('<li/>',{style:"margin:0; padding:8px 0px; border-bottom: 1px solid #ccc;"});
+                var row = $('<div/>',{class:"node-input-path-row"}).appendTo(container);
+                var row2 = $('<div/>',{style:"padding-top: 5px;"}).appendTo(container);
 
-					var checkBox = $('<input/>',{id:"node-input-path-cb"+i,type:"checkbox",style:"margin: 5px; width: auto"}).appendTo(row);
-					checkBox.data('path', path);
-					var pathField = $('<label/>',{for:"node-input-path-cb"+i,style:"width:auto"}).text(path + " '" + matchFilter + "'").appendTo(row);
-					$("#node-input-paths-container").append(container);
-				}
+                var checkBox = $('<input/>',{id:"node-input-path-cb"+i,type:"checkbox",style:"margin: 5px; width: auto"}).appendTo(row);
+                checkBox.data('path', path);
+                var pathField = $('<label/>',{for:"node-input-path-cb"+i,style:"width:auto"}).text(path).appendTo(row);
+                $("#node-input-paths-container").append(container);
             }
 
             var node = this;
@@ -130,6 +106,7 @@
                     "host": $('#node-input-host').val(),
                     "port": $('#node-input-port').val()
                 };
+
                 if (!params['host']) {
                     $('#owfs-status small').html("No host set");
                     return;
@@ -193,18 +170,27 @@
                 });
             });
 
-            $("#node-input-select-filter").click( function() {
-				var currentPaths = $('#node-input-paths-container input:checked').map( function() {
-                    return $(this).data('path');
+            $("#node-input-select-all").click( function() {
+                $('#node-input-paths-container input:checkbox').each( function() {
+                    $(this).prop('checked', true);
                 });
-                refreshPaths(currentPaths);
             });
 
-			$("#node-input-filter").enter( function() {
-				var currentPaths = $('#node-input-paths-container input:checked').map( function() {
-                    return $(this).data('path');
+            function checkPathsMatching(regexp) {
+                $('#node-input-paths-container input:checkbox').each( function() {
+                    var checkbox = $(this);
+                    if (checkbox.data('path').match(regexp)) {
+                        checkbox.prop('checked', true);
+                    }
                 });
-                refreshPaths(currentPaths);
+            }
+
+            $("#node-input-select-temperature").click( function() {
+                checkPathsMatching(/\/temperature$/);
+            });
+
+            $("#node-input-select-humidity").click( function() {
+                checkPathsMatching(/\/humidity$/);
             });
 
             refreshPaths(this.paths);
