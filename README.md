@@ -1,7 +1,8 @@
-node-red-contrib-owfs
+node-red-contrib-owfs-context
 =====================
 
 A [Node-RED] node for talking to [1-wire] devices using an [owfs] [owserver] instance.
+Writes results in node-red global context.
 
 
 Install
@@ -9,7 +10,7 @@ Install
 
 Run the following command in the root directory of your Node-RED install
 
-    npm install node-red-contrib-owfs
+    npm install node-red-contrib-owfs-context
 
 
 Usage
