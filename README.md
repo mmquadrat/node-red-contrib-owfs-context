@@ -28,7 +28,7 @@ To trigger reading sensors periodically, use an Inject node to send messages eve
 
 To check presence of sensors, select Mode **Presence** and use an Inject node to request the status. A boolean value in **msg.payload** will indicate the sensor presence status.
 
-New functionality of this fork is writing values from nodes reading into global context in section "LiveValues".
+New functionality of this fork is writing values from (reading) nodes into global context in section "LiveValues".
 e.g. 
    "LiveValues": {
         "5": {
